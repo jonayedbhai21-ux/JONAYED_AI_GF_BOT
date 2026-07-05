@@ -1,0 +1,51 @@
+import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from google import genai
+
+BOT_TOKEN = os.getenv("8912072493:AAHzCrytSI-HwWZ2F4N6VUJf93PJ6dA97p8")
+GEMINI_API_KEY = os.getenv("AQ.Ab8RN6IE0eLvIkIjwwL6F8FgRQYgKD7XdoFyJZbmB7OXMLysEA")
+
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+SYSTEM_PROMPT = """
+তুমি একটি friendly Bangla AI assistant।
+সবসময় ভদ্রভাবে বাংলা/ইংরেজিতে উত্তর দিবে।
+"""
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("আসসালামু আলাইকুম 👋\nআমি তোমার Gemini AI bot। কিছু লিখে পাঠাও 🙂")
+
+async def ask_gemini(user_text: str) -> str:
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{SYSTEM_PROMPT}\n\nUser: {user_text}"
+        )
+        if hasattr(response, "text") and response.text:
+            return response.text.strip()
+        return "দুঃখিত, এখন উত্তর দিতে পারলাম না 😅"
+    except Exception as e:
+        return f"সমস্যা হয়েছে: {e}"
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_text = update.message.text
+    reply = await ask_gemini(user_text)
+    await update.message.reply_text(reply)
+
+def main():
+    if not BOT_TOKEN:
+        raise ValueError("8912072493:AAHzCrytSI-HwWZ2F4N6VUJf93PJ6dA97p8")
+    if not GEMINI_API_KEY:
+        raise ValueError("AQ.Ab8RN6IE0eLvIkIjwwL6F8FgRQYgKD7XdoFyJZbmB7OXMLysEA")
+
+    app = ApplicationBuilder().token(BOT_TOKEN).build()
+
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+    print("Bot is running...")
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
